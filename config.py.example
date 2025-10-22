@@ -1,0 +1,5 @@
+HVR_IP = "local_ip"
+USERNAME = "secure_username"
+PASSWORD = "secure_password"
+UPLOAD_ENDPOINT = f"http://{HVR_IP}/ISAPI/System/configurationData"
+IMAGE_DIR = "./image.jpg"
