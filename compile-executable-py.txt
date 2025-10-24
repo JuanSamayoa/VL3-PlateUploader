@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --name Subir_Placas_VL3 --add-data "config.py;." --hidden-import pandas --hidden-import openpyxl --hidden-import xlrd --hidden-import requests --hidden-import threading --hidden-import re --collect-all pandas hikivision_api.py
