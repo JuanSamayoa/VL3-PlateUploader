@@ -3,10 +3,8 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('config.py', '.')]
 binaries = []
-hiddenimports = ['pandas', 'PIL', 'openpyxl', 'xlrd', 'requests']
+hiddenimports = ['pandas', 'openpyxl', 'xlrd', 'requests', 'threading', 're']
 tmp_ret = collect_all('pandas')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('PIL')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 

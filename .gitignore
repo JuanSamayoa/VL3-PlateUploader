@@ -1,0 +1,24 @@
+# Archivos generados por PyInstaller
+dist/
+build/
+*.spec
+
+# Archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+
+# Ejecutables
+*.exe
+
+# Imágenes y recursos
+*.jpg
+*.png
+*.gif
+
+# Archivos temporales
+*.tmp
+*.log
+
+# Configuración local (mantener config.py.example)
+config.py

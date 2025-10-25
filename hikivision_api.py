@@ -10,6 +10,23 @@ import config
 import threading
 import re
 
+# Definición de errores con códigos
+ERROR_CODES = {
+    "Err-001": "Formato de archivo inválido. El archivo Excel no se puede "
+               "leer o no tiene el formato esperado.",
+    "Err-002": "Problema de conexión. No se puede conectar al servidor "
+               "Hikvision.",
+    "Err-003": "Datos inválidos en el archivo. El archivo contiene datos "
+               "que no cumplen con los requisitos.",
+    "Err-004": "Placas inválidas. Algunas placas no tienen el formato "
+               "correcto (ej. P123ABC).",
+    "Err-005": "Error al procesar el archivo. Ocurrió un problema durante "
+               "la transformación del archivo.",
+    "Err-006": "Error al subir el archivo. No se pudo enviar el archivo "
+               "al servidor.",
+    "Err-007": "Error desconocido. Contacta al soporte técnico."
+}
+
 
 def transformar_excel(ruta_origen):
     """Transforma archivo Excel de placas a formato requerido por Hikvision."""
@@ -61,11 +78,7 @@ def transformar_excel(ruta_origen):
             try_engine("xlrd")
 
     if df is None:
-        msg = (
-            "No se pudo leer el archivo Excel. Comprueba que está en un "
-            "formato válido (.xls o .xlsx). "
-        )
-        raise ValueError(msg)
+        raise ValueError("Err-001")
 
     # Procesar en chunks si el archivo es grande para evitar sobrecargar la PC
     chunk_size = 100 if len(df) > 500 else len(df)
@@ -77,23 +90,31 @@ def transformar_excel(ruta_origen):
         chunk_out["No."] = range(start + 1, end + 1)
         chunk_out["Plate No."] = chunk.iloc[:, 2]  # Columna de la placa
 
+        # Filtrar placas vacías
+        chunk_out = chunk_out[
+            chunk_out["Plate No."].notna() &
+            (chunk_out["Plate No."].str.strip() != "")
+        ]
+
         # Validar formato de placas en el chunk
         placa_pattern = re.compile(r'^[PACUO]\d{3}[A-Z]{3}$')
         invalid_plates = []
         for idx, placa in enumerate(chunk_out["Plate No."]):
-            if pd.isna(placa) or not placa_pattern.match(str(placa).strip()):
+            if not placa_pattern.match(str(placa).strip()):
                 invalid_plates.append(f"Fila {start + idx + 1}: '{placa}'")
         if invalid_plates:
-            msg = "Placas inválidas: " + ", ".join(invalid_plates[:5])
-            raise ValueError(msg)
+            raise ValueError("Err-004")
 
-        chunk_out["Group(0 BlockList, 1 AllowList)"] = (
-            chunk.iloc[:, 3].apply(
-                lambda x: 1
-                if str(x).strip().lower() in ["allow", "1", "permitido", "si"]
-                else 0
+        # Manejar columna de activo/inactivo
+        if len(chunk.columns) > 3:
+            chunk_out["Group(0 BlockList, 1 AllowList)"] = (
+                chunk.iloc[:, 3].apply(
+                    lambda x: 1 if str(x).strip().lower() in
+                    ["allow", "1", "permitido", "si"] else 0
+                )
             )
-        )
+        else:
+            chunk_out["Group(0 BlockList, 1 AllowList)"] = 0
 
         chunk_out[
             "Effective Start Date (Format: YYYY-MM-DD, eg., 2017-12-07)"
@@ -116,22 +137,27 @@ def transformar_excel(ruta_origen):
 
 def subir_archivo(ruta_archivo):
     """Sube archivo transformado al endpoint de Hikvision."""
-    with open(ruta_archivo, 'rb') as f:
-        files = {
-            "file": (
-                os.path.basename(ruta_archivo),
-                f,
-                "application/octet-stream",
+    try:
+        with open(ruta_archivo, 'rb') as f:
+            files = {
+                "file": (
+                    os.path.basename(ruta_archivo),
+                    f,
+                    "application/octet-stream",
+                )
+            }
+            resp = requests.put(
+                config.UPLOAD_ENDPOINT,
+                files=files,
+                auth=HTTPDigestAuth(config.USERNAME, config.PASSWORD),
+                timeout=15,
             )
-        }
-        resp = requests.put(
-            config.UPLOAD_ENDPOINT,
-            files=files,
-            auth=HTTPDigestAuth(config.USERNAME, config.PASSWORD),
-            timeout=15,
-        )
 
-    return resp
+        if resp.status_code not in [200, 201, 204]:
+            raise Exception("Err-006")
+        return resp
+    except requests.exceptions.RequestException:
+        raise Exception("Err-002")
 
 
 def ejecutar():
@@ -163,10 +189,14 @@ def ejecutar():
                     "Error",
                     "No se pudo subir el archivo. Verifica la conexión.",
                 )
-        except ValueError:
-            messagebox.showerror("Error", "Datos inválidos en el archivo.")
-        except Exception:
-            messagebox.showerror("Error", "Ocurrió un problema inesperado.")
+        except ValueError as e:
+            error_code = e.args[0] if e.args else "Err-003"
+            msg = ERROR_CODES.get(error_code, "Error desconocido.")
+            messagebox.showerror("Error", msg)
+        except Exception as e:
+            error_code = str(e) if str(e).startswith("Err-") else "Err-007"
+            msg = ERROR_CODES.get(error_code, "Error desconocido.")
+            messagebox.showerror("Error", msg)
         finally:
             # Rehabilitar botón y limpiar loader
             btn.config(state="normal")
