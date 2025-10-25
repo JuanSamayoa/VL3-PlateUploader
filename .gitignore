@@ -22,3 +22,4 @@ __pycache__/
 
 # Configuración local (mantener config.py.example)
 config.py
+*.spec

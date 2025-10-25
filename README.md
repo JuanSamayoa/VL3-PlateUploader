@@ -55,5 +55,5 @@ pyinstaller --onefile --noconsole --hidden-import pandas --hidden-import request
 
 ---
 
-Hecho por: Juan Samayoa
+Hecho por: Juan Samayoa <br>
 Contacto por medio de web: [Portafolio - Sección Contacto](https://juan-samayoa.is-a.dev) o en [Mi Perfil](https://github.com/JuanSamayoa)
